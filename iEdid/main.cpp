@@ -18,7 +18,7 @@ int main(int argc, char* argv[])
 
 	//"E:/Work/4K.bin"
 
-	CEdid ced("E:/Work/4K.bin");
+	CEdid ced("E:/Work/DEL.bin");
 	ced.parse_edid();
 
 	system("pause");

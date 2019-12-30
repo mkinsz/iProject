@@ -87,6 +87,31 @@ edid_detailed_timing_stereo_mode(const struct edid_detailed_timing_descriptor* c
 	return (dtb->stereo_mode_hi << 2 | dtb->stereo_mode_lo);
 }
 
+static inline bool
+edid_verify_checksum(const uint8_t* const block)
+{
+	uint8_t checksum = 0;
+	int i;
+
+	for (i = 0; i < EDID_BLOCK_SIZE; i++)
+		checksum += block[i];
+
+	return (checksum == 0);
+}
+
+static inline double
+edid_decode_fixed_point(uint16_t value)
+{
+	double result = 0.0;
+
+	assert((~value & 0xfc00) == 0xfc00);    /* edid fraction is 10 bits */
+
+	for (uint8_t i = 0; value && (i < 10); i++, value >>= 1)
+		result = result + ((value & 0x1) * (1.0 / (1 << (10 - i))));
+
+	return result;
+}
+
 static inline const char* const
 _aspect_ratio(const uint16_t hres, const uint16_t vres)
 {
@@ -181,7 +206,7 @@ edid_detailed_timing_is_monitor_descriptor(const struct edid* const edid,
 static inline std::string
 _edid_timing_string(const struct edid_detailed_timing_descriptor* const dtb)
 {
-	char timing[2048];
+	char timing[1024];
 	const uint16_t hres = edid_detailed_timing_horizontal_active(dtb);
 	const uint16_t vres = edid_detailed_timing_vertical_active(dtb);
 	const uint32_t htotal = hres + edid_detailed_timing_horizontal_blanking(dtb);
@@ -232,7 +257,7 @@ edid_standard_timing_refresh_rate(const struct edid_standard_timing_descriptor* 
 static inline std::string
 _edid_mode_string(const struct edid_detailed_timing_descriptor* const dtb)
 {
-	char modestr[2048];
+	char modestr[1024];
 	const uint16_t xres = edid_detailed_timing_horizontal_active(dtb);
 	const uint16_t yres = edid_detailed_timing_vertical_active(dtb);
 	const uint32_t pixclk = edid_detailed_timing_pixel_clock(dtb);
@@ -427,7 +452,7 @@ disp_edid(const struct edid* const edid)
 	//	edid_gamma(edid));
 
 	//printf("  Red chromaticity......... Rx %0.3f - Ry %0.3f\n",
-	//	edid_decode_fixed_point(characteristics.red.x),
+		//edid_decode_fixed_point(characteristics.red.x),
 	//	edid_decode_fixed_point(characteristics.red.y));
 
 	//printf("  Green chromaticity....... Gx %0.3f - Gy %0.3f\n",
@@ -642,22 +667,54 @@ disp_cea861_vendor_data(const struct cea861_vendor_specific_data_block* vsdb)
 		}
 
 		if (hdmi->header.length >= HDMI_VSDB_LATENCY_FIELDS_OFFSET) {
-			if (hdmi->latency_fields) {
-				printf("  Video latency %s........ %ums\n",
-					hdmi->interlaced_latency_fields ? "(p)" : "...",
-					(hdmi->video_latency - 1) << 1);
-				printf("  Audio latency %s........ %ums\n",
-					hdmi->interlaced_latency_fields ? "(p)" : "...",
-					(hdmi->audio_latency - 1) << 1);
-			}
+			//if (hdmi->latency_fields) {
+			//	printf("  Video latency %s........ %ums\n",
+			//		hdmi->interlaced_latency_fields ? "(p)" : "...",
+			//		(hdmi->video_latency - 1) << 1);
+			//	printf("  Audio latency %s........ %ums\n",
+			//		hdmi->interlaced_latency_fields ? "(p)" : "...",
+			//		(hdmi->audio_latency - 1) << 1);
+			//}
 
-			if (hdmi->interlaced_latency_fields) {
-				printf("  Video latency (i)........ %ums\n",
-					hdmi->interlaced_video_latency);
-				printf("  Audio latency (i)........ %ums\n",
-					hdmi->interlaced_audio_latency);
+			//if (hdmi->interlaced_latency_fields) {
+			//	printf("  Video latency (i)........ %ums\n",
+			//		hdmi->interlaced_video_latency);
+			//	printf("  Audio latency (i)........ %ums\n",
+			//		hdmi->interlaced_audio_latency);
+			//}
+
+			if (hdmi->hdmi_video_present) {
+				printf("  Supports 3D ............. %s\n",
+					hdmi->content_definition.hdmi_present.present_3d ? "Yes" : "No");
+
+				printf("  3D multi present ........ %u \n",
+					hdmi->content_definition.hdmi_present.multi_present_3d);
+				printf("  Hdmi vic length ......... %u \n",
+					hdmi->content_definition.hdmi_present.hdmi_vic_len);
+				printf("  Hdmi 3D length .......... %u \n",
+					hdmi->content_definition.hdmi_present.hdmi_3d_len);
+				printf("  Image size .............. %u \n",
+					hdmi->content_definition.hdmi_present.image_size);
+
+				printf("Hdmi vic list \n");
+
+				const std::string format[5] = {
+					"",
+					"4K * 2K 29.97 30Hz",
+					"4K * 2K 25Hz",
+					"4K * 2K 23.98 24Hz",
+					"4K * 2K 24Hz SMPTE"
+				};
+
+				for (uint8_t i = 0; i < hdmi->content_definition.hdmi_present.hdmi_vic_len; i++) {
+					uint8_t index = hdmi->content_definition.hdmi_present.reserved[i];
+					printf("  %s \n", format[index].data());
+				}
+
 			}
 		}
+
+		
 	}
 
 	printf("\n");
@@ -751,6 +808,7 @@ disp_cea861(const struct edid_extension* const ext)
 			switch (header->tag) {
 			case CEA861_DATA_BLOCK_TYPE_AUDIO:
 			{
+				OutputLog("Audio Length: %d \n", header->length);
 				const struct cea861_audio_data_block* const db =
 					(struct cea861_audio_data_block*) header;
 
@@ -759,6 +817,7 @@ disp_cea861(const struct edid_extension* const ext)
 			break;
 			case CEA861_DATA_BLOCK_TYPE_VIDEO:
 			{
+				OutputLog("Video Length: %d \n", header->length);
 				const struct cea861_video_data_block* const db =
 					(struct cea861_video_data_block*) header;
 
@@ -767,6 +826,7 @@ disp_cea861(const struct edid_extension* const ext)
 			break;
 			case CEA861_DATA_BLOCK_TYPE_VENDOR_SPECIFIC:
 			{
+				OutputLog("VSDB Length: %d \n", header->length);
 				const struct cea861_vendor_specific_data_block* const db =
 					(struct cea861_vendor_specific_data_block*) header;
 
@@ -775,6 +835,7 @@ disp_cea861(const struct edid_extension* const ext)
 			break;
 			case CEA861_DATA_BLOCK_TYPE_SPEAKER_ALLOCATION:
 			{
+				OutputLog("Speaker Length: %d \n", header->length);
 				const struct cea861_speaker_allocation_data_block* const db =
 					(struct cea861_speaker_allocation_data_block*) header;
 
@@ -798,6 +859,8 @@ disp_cea861(const struct edid_extension* const ext)
 static void
 dump_cea861(const uint8_t* const buffer)
 {
+	printf("cea info: \n");
+
 	const struct edid_detailed_timing_descriptor* dtd = NULL;
 	const struct cea861_timing_block* const ctb =
 		(struct cea861_timing_block*) buffer;
@@ -873,8 +936,6 @@ void CEdid::parse_edid()
 
 	dump_edid((uint8_t*) edid);
 	disp_edid(edid);
-
-	printf("\n cea info: \n");
 
 	for (uint8_t i = 0; i < edid->extensions; i++) {
 		const struct edid_extension* const extension = &extensions[i];

@@ -31,16 +31,71 @@ struct hdmi_vendor_specific_data_block {
 
 	uint8_t  max_tmds_clock;                    /* = value * 5 */
 
-	uint8_t : 6;
+	uint8_t : 5;
+	uint8_t hdmi_video_present : 1;
 	uint8_t interlaced_latency_fields : 1;
 	uint8_t latency_fields : 1;
 
-	uint8_t  video_latency;                     /* = (value - 1) * 2 */
-	uint8_t  audio_latency;                     /* = (value - 1) * 2 */
-	uint8_t  interlaced_video_latency;
-	uint8_t  interlaced_audio_latency;
+	union {
+		struct {
+			uint8_t video_latency;                     /* = (value - 1) * 2 */
+			uint8_t audio_latency;                     /* = (value - 1) * 2 */
+			uint8_t interlaced_video_latency;
+			uint8_t interlaced_audio_latency;
 
-	uint8_t  reserved[];
+			uint8_t : 3;
+			uint8_t image_size : 2;
+			uint8_t multi_present_3d : 2;
+			uint8_t present_3d : 1;
+
+			uint8_t hdmi_3d_len : 5;
+			uint8_t hdmi_vic_len : 3;
+
+			uint8_t reserved[];
+		} all_field;
+
+		struct {
+			uint8_t video_latency;                     /* = (value - 1) * 2 */
+			uint8_t audio_latency;                     /* = (value - 1) * 2 */
+
+			uint8_t : 3;
+			uint8_t image_size : 2;
+			uint8_t multi_present_3d : 2;
+			uint8_t present_3d : 1;
+
+			uint8_t hdmi_3d_len : 5;
+			uint8_t hdmi_vic_len : 3;
+
+			uint8_t reserved[];
+		} latency_field;
+
+		struct {
+			uint8_t interlaced_video_latency;
+			uint8_t interlaced_audio_latency;
+
+			uint8_t : 3;
+			uint8_t image_size : 2;
+			uint8_t multi_present_3d : 2;
+			uint8_t present_3d : 1;
+
+			uint8_t hdmi_3d_len : 5;
+			uint8_t hdmi_vic_len : 3;
+
+			uint8_t reserved[];
+		} ilatency_field;
+
+		struct {
+			uint8_t : 3;
+			uint8_t image_size : 2;
+			uint8_t multi_present_3d : 2;
+			uint8_t present_3d : 1;
+
+			uint8_t hdmi_3d_len : 5;
+			uint8_t hdmi_vic_len : 3;
+
+			uint8_t reserved[];
+		} hdmi_present;
+	} content_definition;
 };
 
 #endif
