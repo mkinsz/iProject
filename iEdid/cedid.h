@@ -1,9 +1,6 @@
 #ifndef CEDID
 #define CEDID
 
-//#pragma pack(push)
-//#pragma pack(1)
-
 #include <cstdint>
 
 #define EDID_I2C_DDC_DATA_ADDRESS               (0x50)
@@ -271,8 +268,6 @@ struct edid {
 	uint8_t  extensions;
 	uint8_t  checksum;
 };
-
-//#pragma pack(pop)
 
 class CEdid
 {

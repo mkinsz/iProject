@@ -8,7 +8,8 @@
 #define HDMI_VSDB_MAX_TMDS_OFFSET               (0x07)
 #define HDMI_VSDB_LATENCY_FIELDS_OFFSET         (0x08)
 
-static const uint8_t HDMI_OUI[] = { 0x00, 0x0C, 0x03 };
+static const uint8_t HDMI_OUI[] = { 0x00, 0x0C, 0x03 };		//HDMI14
+//static const uint8_t HDMI_OUI[] = { 0xC4, 0x5D, 0xD8 };		//HDMI20
 
 struct hdmi_vendor_specific_data_block {
 	struct cea861_data_block_header header;

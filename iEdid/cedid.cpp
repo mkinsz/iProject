@@ -552,6 +552,8 @@ disp_edid(const struct edid* const edid)
 			edid_standard_timing_refresh_rate(desc));
 	}
 
+
+
 	printf("\n");
 }
 
@@ -933,6 +935,8 @@ void CEdid::parse_edid()
 {
 	const struct edid* const edid = (struct edid*)m_buf;
 	const struct edid_extension * const extensions = (struct edid_extension*) (m_buf + sizeof(*edid));
+
+	if (memcmp(edid->header, EDID_HEADER, sizeof(edid->header))) return;
 
 	dump_edid((uint8_t*) edid);
 	disp_edid(edid);
